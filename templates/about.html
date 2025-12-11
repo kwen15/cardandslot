@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card mb-4">
+  <div class="card-header">About the Project</div>
+  <div class="card-body">
+    <p>This app studies the Filipino Perya Color Game using Monte Carlo simulation. It contrasts a fair version with multiple tweaks (altered probabilities or payouts) to illustrate how a small change can create a house edge.</p>
+    <ul class="mb-0">
+      <li>Fair game baseline with equal probabilities.</li>
+      <li>Tweaked and weighted versions that shift expected value.</li>
+      <li>Modified payout and normal distribution multipliers.</li>
+      <li>Lucky 9 card-based variant.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">What the simulation shows</div>
+  <div class="card-body">
+    <p>For each configuration we track win rate, player ROI, house ROI, and cumulative profit over time. Visual charts make it easy to see divergence between fair and tweaked games.</p>
+    <a class="btn btn-primary" href="/run-simulation">Run a simulation</a>
+  </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card mb-4">
+  <div class="card-header">Simulation Results</div>
+  <div class="card-body">
+    <p class="mb-2 text-muted">Simulations: {{num_simulations}} | Bet Amount: {{bet_amount}}</p>
+    {% if stats_rows %}
+    <div class="mb-4">
+      <canvas id="profitChart" height="120"></canvas>
+    </div>
+    <div class="mb-4">
+      <canvas id="metricsChart" height="100"></canvas>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-striped align-middle">
+        <thead>
+          <tr>
+            <th>Game</th>
+            <th>Win Rate</th>
+            <th>Player ROI</th>
+            <th>House ROI</th>
+            <th>Final Player Balance</th>
+            <th>Final House Balance</th>
+            <th>Theoretical Edge</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in stats_rows %}
+          <tr>
+            <td>{{row.game}}</td>
+            <td>{{row.win_rate}}</td>
+            <td>{{row.player_roi}}</td>
+            <td>{{row.house_roi}}</td>
+            <td>{{row.final_player_balance}}</td>
+            <td>{{row.final_house_balance}}</td>
+            <td>{{row.theoretical_edge}}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p>No simulations were run. Please select at least one game.</p>
+    {% endif %}
+    <a class="btn btn-link mt-3" href="/run-simulation">← Back to form</a>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const series = {{ chart_series|tojson }};
+  const metrics = {{ metrics_series|tojson }};
+  if (series.length) {
+    const ctx = document.getElementById('profitChart');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: series.map((s, idx) => ({
+          label: s.label,
+          data: s.data,
+          fill: false,
+          borderWidth: 2,
+          tension: 0.12,
+          pointRadius: 0,
+        }))
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: {
+            mode: 'nearest',
+            intersect: false,
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'Game number' }
+          },
+          y: {
+            title: { display: true, text: 'Cumulative player profit' }
+          }
+        }
+      }
+    });
+  }
+  if (metrics.length) {
+    const ctx2 = document.getElementById('metricsChart');
+    const labels = metrics.map(m => m.label);
+    new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Win Rate (%)',
+            data: metrics.map(m => m.win_rate),
+            backgroundColor: 'rgba(14,165,233,0.6)',
+          },
+          {
+            label: 'Player ROI (%)',
+            data: metrics.map(m => m.player_roi),
+            backgroundColor: 'rgba(16,185,129,0.6)',
+          },
+          {
+            label: 'House ROI (%)',
+            data: metrics.map(m => m.house_roi),
+            backgroundColor: 'rgba(239,68,68,0.6)',
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } },
+        scales: {
+          y: { title: { display: true, text: 'Percent' } },
+          x: { title: { display: true, text: 'Game' } }
+        }
+      }
+    });
+  }
+</script>
+{% endblock %}

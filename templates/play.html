@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .game-panel { background:#0d2e6e; color:#fff; border-radius:12px; padding:20px; }
+  .card-grid { background:linear-gradient(90deg,#3f51b5,#6a1b9a); border-radius:14px; min-height:160px; display:flex; align-items:center; justify-content:center; gap:12px; padding:16px; flex-wrap:wrap;}
+  .card-face { width:56px; height:80px; border-radius:8px; background:#fff; color:#111; display:flex; flex-direction:column; justify-content:center; align-items:center; box-shadow:0 4px 10px rgba(0,0,0,0.15);}
+  .slot-grid { background:linear-gradient(90deg,#0ea5e9,#6366f1); border-radius:14px; min-height:140px; display:flex; align-items:center; justify-content:center; gap:16px; padding:16px;}
+  .reel { width:80px; height:80px; border-radius:10px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:700; color:#111; box-shadow:0 4px 10px rgba(0,0,0,0.15);}
+  .history-item { border-left:4px solid #0ea5e9; padding-left:10px; }
+</style>
+
+<div class="row g-3">
+  <div class="col-lg-3">
+    <div class="card mb-3">
+      <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+        <span>Game Mode</span>
+        <select id="gameMode" class="form-select form-select-sm" style="width:auto">
+          <option value="lucky9">Lucky 9</option>
+          <option value="slot">Slot Machine</option>
+        </select>
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Lucky 9 Settings</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label">Payout Multiplier</label>
+          <input id="payoutMult" type="range" min="1.5" max="4.0" step="0.1" class="form-range" value="2.0">
+          <div class="small text-muted">Current: <span id="payoutValue">2.0</span>x</div>
+        </div>
+        <div class="bg-primary text-white rounded-3 p-3 text-center">
+          <div class="small">House Bank</div>
+          <div class="fs-4 fw-bold" id="houseBank">$10000</div>
+          <div class="small" id="houseProfit">Profit: $0</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header fw-semibold">Player</div>
+      <div class="card-body">
+        <div class="mb-2">
+          <label class="form-label">Player Name</label>
+          <input id="playerName" class="form-control" value="Player 1">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Starting Funds</label>
+          <input id="playerFunds" class="form-control" type="number" value="1000">
+        </div>
+        <button class="btn btn-success w-100 mb-2" id="addPlayer">Add/Reset Player</button>
+        <div id="playerCard" class="small text-muted">Balance: $1000</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <!-- Lucky 9 Panel -->
+    <div id="luckyPanel" class="game-panel mb-3">
+      <div class="text-center mb-2 fw-semibold">Deal Cards</div>
+      <div class="card-grid mb-3">
+        <div class="text-center text-white me-2">Player</div>
+        <div id="p1" class="card-face">?</div>
+        <div id="p2" class="card-face">?</div>
+        <div id="p3" class="card-face">?</div>
+        <div class="text-center text-white ms-4 me-2">Dealer</div>
+        <div id="d1" class="card-face">?</div>
+        <div id="d2" class="card-face">?</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Bet Amount: $<span id="betValue">10</span></label>
+        <input id="betRange" type="range" min="1" max="200" step="1" class="form-range" value="10">
+      </div>
+      <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <button class="btn btn-primary" id="dealBtn">Peek Hand</button>
+        <button class="btn btn-warning text-dark" id="drawBtn">Draw 3rd Card</button>
+        <button class="btn btn-success" id="resolveBtn">Deal / Resolve</button>
+        <button class="btn btn-outline-light" id="foldBtn">Fold</button>
+        <button class="btn btn-outline-light" id="clearBtn">Clear</button>
+      </div>
+    </div>
+    <!-- Slot Machine Panel -->
+    <div id="slotPanel" class="game-panel mb-3" style="display:none">
+      <div class="text-center mb-2 fw-semibold">Slot Machine</div>
+      <div class="slot-grid mb-3">
+        <div id="r1" class="reel">?</div>
+        <div id="r2" class="reel">?</div>
+        <div id="r3" class="reel">?</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Bet Amount: $<span id="slotBetValue">10</span></label>
+        <input id="slotBetRange" type="range" min="1" max="200" step="1" class="form-range" value="10">
+      </div>
+      <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <button class="btn btn-primary" id="spinBtn">Spin</button>
+        <button class="btn btn-outline-light" id="slotClearBtn">Clear</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header fw-semibold">Round Results</div>
+      <div class="card-body">
+        <div class="row text-center">
+          <div class="col">
+            <div class="small text-muted">Player Total</div>
+            <div class="fs-4" id="playerTotal">0</div>
+          </div>
+          <div class="col">
+            <div class="small text-muted">Dealer Total</div>
+          <div class="fs-4" id="dealerTotal">-</div>
+          </div>
+          <div class="col">
+            <div class="small text-muted">Outcome</div>
+            <div class="fs-4" id="outcome">-</div>
+          </div>
+          <div class="col">
+            <div class="small text-muted">Payout</div>
+            <div class="fs-4" id="payout">$0</div>
+          </div>
+          <div class="col">
+            <div class="small text-muted">Player Balance</div>
+            <div class="fs-4" id="playerBalance">$1000</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3">
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Quick Stats</div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+          <span>Total Rounds</span><span id="rounds">0</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span>Total Wagered</span><span id="totalWagered">$0</span>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span>House Profit</span><span id="totalHouseProfit">$0</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header fw-semibold">Recent History</div>
+      <div class="card-body" id="history" style="max-height:320px; overflow-y:auto;">
+        <div class="text-muted small">Play a round to see history.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let playerBalance = 1000;
+  let houseBank = 10000;
+  let rounds = 0;
+  let totalWagered = 0;
+  let totalHouseProfit = 0;
+  let deckState = [];
+  let stagedPlayer = [];
+  let stagedDealer = [];
+  let stagedBet = 10;
+  let stagedPayout = 2.0;
+  let stagedDeck = [];
+  let slotBet = 10;
+  let gameMode = 'lucky9';
+  const slotSymbols = ["A","B","C","D","7","BAR"];
+  let spinTimer = null;
+  let spinStopTimeouts = [];
+
+  function ensureBalance(bet) {
+    if (playerBalance <= 0 || bet > playerBalance) {
+      alert('Insufficient balance');
+      return false;
+    }
+    return true;
+  }
+
+  const betRange = document.getElementById('betRange');
+  const betValue = document.getElementById('betValue');
+  betRange.addEventListener('input', () => {
+    betValue.textContent = betRange.value;
+    stagedBet = Number(betRange.value);
+  });
+  stagedBet = Number(betRange.value);
+
+  const payoutMult = document.getElementById('payoutMult');
+  const payoutValue = document.getElementById('payoutValue');
+  payoutMult.addEventListener('input', () => {
+    payoutValue.textContent = Number(payoutMult.value).toFixed(1);
+    stagedPayout = Number(payoutMult.value);
+  });
+  stagedPayout = Number(payoutMult.value);
+
+  const slotBetRange = document.getElementById('slotBetRange');
+  const slotBetValue = document.getElementById('slotBetValue');
+  slotBetRange.addEventListener('input', () => {
+    slotBetValue.textContent = slotBetRange.value;
+    slotBet = Number(slotBetRange.value);
+  });
+  slotBet = Number(slotBetRange.value);
+
+  const gameModeSelect = document.getElementById('gameMode');
+  gameModeSelect.addEventListener('change', () => {
+    gameMode = gameModeSelect.value;
+    document.getElementById('luckyPanel').style.display = gameMode === 'lucky9' ? '' : 'none';
+    document.getElementById('slotPanel').style.display = gameMode === 'slot' ? '' : 'none';
+    document.getElementById('outcome').textContent = '-';
+    document.getElementById('payout').textContent = '$0';
+    document.getElementById('dealerTotal').textContent = gameMode === 'lucky9' ? '-' : '-';
+  });
+
+  document.getElementById('addPlayer').addEventListener('click', () => {
+    playerBalance = Number(document.getElementById('playerFunds').value || 1000);
+    document.getElementById('playerBalance').textContent = `$${playerBalance.toFixed(2)}`;
+    document.getElementById('playerCard').textContent = `Balance: $${playerBalance.toFixed(2)}`;
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    ['p1','p2','p3','d1','d2'].forEach(id => document.getElementById(id).textContent = '?');
+    document.getElementById('playerTotal').textContent = '0';
+    document.getElementById('dealerTotal').textContent = '-';
+    document.getElementById('outcome').textContent = '-';
+    document.getElementById('payout').textContent = '$0';
+    deckState = [];
+    stagedPlayer = [];
+    stagedDealer = [];
+    stagedDeck = [];
+  });
+
+  document.getElementById('slotClearBtn').addEventListener('click', () => {
+    ['r1','r2','r3'].forEach(id => document.getElementById(id).textContent = '?');
+    document.getElementById('outcome').textContent = '-';
+    document.getElementById('payout').textContent = '$0';
+  });
+
+  function renderCards(playerCards, dealerCards, showDealer=false) {
+    const pIds = ['p1','p2','p3'];
+    const dIds = ['d1','d2'];
+    pIds.forEach((id, idx) => {
+      const el = document.getElementById(id);
+      const val = playerCards[idx];
+      el.textContent = val !== undefined ? Number(val).toString() : '?';
+    });
+    dIds.forEach((id, idx) => {
+      const el = document.getElementById(id);
+      const val = dealerCards[idx];
+      el.textContent = showDealer && val !== undefined ? Number(val).toString() : '?';
+    });
+  }
+
+  function addHistory(entry) {
+    const container = document.getElementById('history');
+    const div = document.createElement('div');
+    div.className = 'history-item mb-2';
+    div.innerHTML = `<div class="fw-semibold">Round ${rounds}</div>
+      <div class="small text-muted">Player: ${entry.player_cards.join(', ')} (total ${entry.player_total})</div>
+      <div class="small text-muted">Dealer: ${entry.dealer_cards.join(', ')} (total ${entry.dealer_total})</div>
+      <div class="small">Payout: $${entry.payout.toFixed(2)}</div>
+      <div class="small ${entry.player_profit >= 0 ? 'text-success' : 'text-danger'}">Player: ${entry.player_profit >= 0 ? '+' : ''}${entry.player_profit.toFixed(2)}</div>`;
+    container.prepend(div);
+  }
+
+  function updateBanks(playerProfit, houseProfit, betAmount) {
+    rounds += 1;
+    totalWagered += betAmount;
+    playerBalance += playerProfit;
+    houseBank += houseProfit;
+    totalHouseProfit += houseProfit;
+
+    document.getElementById('rounds').textContent = rounds;
+    document.getElementById('totalWagered').textContent = `$${totalWagered.toFixed(2)}`;
+    document.getElementById('totalHouseProfit').textContent = `$${totalHouseProfit.toFixed(2)}`;
+    document.getElementById('houseBank').textContent = `$${houseBank.toFixed(2)}`;
+    document.getElementById('houseProfit').textContent = `Profit: $${(houseBank - 10000).toFixed(2)}`;
+    document.getElementById('playerBalance').textContent = `$${playerBalance.toFixed(2)}`;
+    document.getElementById('playerCard').textContent = `Balance: $${playerBalance.toFixed(2)}`;
+  }
+
+  async function peekHand() {
+    const bet = stagedBet;
+    if (!ensureBalance(bet)) return;
+    const payload = {
+      bet_amount: bet,
+      payout_multiplier: stagedPayout
+    };
+    const res = await fetch('/api/lucky9/peek', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Error');
+      return;
+    }
+    deckState = data.deck;
+    stagedPlayer = data.player_cards;
+    stagedDealer = [];
+    stagedDeck = data.deck;
+    document.getElementById('playerTotal').textContent = data.player_total;
+    document.getElementById('dealerTotal').textContent = '-';
+    document.getElementById('outcome').textContent = 'Peek (dealer hidden)';
+    document.getElementById('payout').textContent = '$0';
+    renderCards(stagedPlayer, stagedDealer, false);
+  }
+
+  async function drawCard() {
+    if (!deckState.length || !stagedPlayer.length) {
+      alert('Peek first to get a hand.');
+      return;
+    }
+    const res = await fetch('/api/lucky9/draw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deck: deckState, player_cards: stagedPlayer })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Error');
+      return;
+    }
+    stagedPlayer = data.player_cards;
+    deckState = data.deck;
+    stagedDeck = data.deck;
+    document.getElementById('playerTotal').textContent = data.player_total;
+    document.getElementById('outcome').textContent = 'Drew 3rd card';
+    renderCards(stagedPlayer, stagedDealer, false);
+  }
+
+  async function resolveHand() {
+    if (!stagedPlayer.length) {
+      alert('Peek first to get a hand.');
+      return;
+    }
+    const bet = stagedBet;
+    if (!ensureBalance(bet)) return;
+    const payload = {
+      bet_amount: bet,
+      payout_multiplier: stagedPayout,
+      player_cards: stagedPlayer,
+      dealer_cards: stagedDealer,
+      deck: stagedDeck
+    };
+    const res = await fetch('/api/lucky9/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Error');
+      return;
+    }
+
+    updateBanks(data.player_profit, data.house_profit, bet);
+    document.getElementById('playerTotal').textContent = data.player_total;
+    document.getElementById('dealerTotal').textContent = data.dealer_total;
+    document.getElementById('outcome').textContent = data.tie ? 'Tie' : (data.player_won ? 'Player Wins' : 'Dealer Wins');
+    document.getElementById('payout').textContent = `$${data.payout.toFixed(2)}`;
+    renderCards(data.player_cards, data.dealer_cards, true);
+    addHistory(data);
+
+    deckState = [];
+    stagedPlayer = [];
+    stagedDealer = [];
+    stagedDeck = [];
+  }
+
+  async function spinSlot() {
+    const bet = slotBet;
+    if (!ensureBalance(bet)) return;
+    const spinBtn = document.getElementById('spinBtn');
+    spinBtn.disabled = true;
+    startSpinAnimation();
+    const res = await fetch('/api/slot/spin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bet_amount: bet })
+    });
+    const data = await res.json();
+    stopSpinAnimation(data.spin);
+    if (!res.ok) {
+      spinBtn.disabled = false;
+      alert(data.error || 'Error');
+      return;
+    }
+    updateBanks(data.player_profit, data.house_profit, bet);
+    document.getElementById('outcome').textContent = data.payout > 0 ? `Win x${data.multiplier}` : 'Lose';
+    document.getElementById('payout').textContent = `$${data.payout.toFixed(2)}`;
+    addHistory({
+      player_cards: data.spin,
+      dealer_cards: [],
+      player_total: 0,
+      dealer_total: 0,
+      payout: data.payout,
+      player_profit: data.player_profit,
+      house_profit: data.house_profit
+    });
+    // Allow next spin after reels finish settling
+    setTimeout(() => { spinBtn.disabled = false; }, 700);
+  }
+
+  function startSpinAnimation() {
+    const reels = ['r1','r2','r3'];
+    stopSpinAnimation();
+    spinTimer = setInterval(() => {
+      reels.forEach(id => {
+        const sym = slotSymbols[Math.floor(Math.random() * slotSymbols.length)];
+        document.getElementById(id).textContent = sym;
+      });
+    }, 80);
+  }
+
+  function stopSpinAnimation(finalSymbols = null) {
+    if (spinTimer) {
+      clearInterval(spinTimer);
+      spinTimer = null;
+    }
+    spinStopTimeouts.forEach(t => clearTimeout(t));
+    spinStopTimeouts = [];
+    if (finalSymbols && finalSymbols.length === 3) {
+      const reels = ['r1','r2','r3'];
+      reels.forEach((id, idx) => {
+        const delay = 150 * (idx + 1);
+        const to = setTimeout(() => {
+          document.getElementById(id).textContent = finalSymbols[idx];
+        }, delay);
+        spinStopTimeouts.push(to);
+      });
+    }
+  }
+
+  function foldHand() {
+    if (!stagedPlayer.length) {
+      alert('Nothing to fold; peek first.');
+      return;
+    }
+    const bet = stagedBet;
+    const player_profit = -bet;
+    const house_profit = bet;
+    updateBanks(player_profit, house_profit, bet);
+    document.getElementById('outcome').textContent = 'Fold';
+    document.getElementById('payout').textContent = '$0';
+    addHistory({
+      player_cards: stagedPlayer,
+      dealer_cards: stagedDealer.length ? stagedDealer : ['?', '?'],
+      player_total: Number(document.getElementById('playerTotal').textContent) || 0,
+      dealer_total: Number(document.getElementById('dealerTotal').textContent) || 0,
+      payout: 0,
+      player_profit,
+      house_profit
+    });
+    deckState = [];
+    stagedPlayer = [];
+    stagedDealer = [];
+    stagedDeck = [];
+    ['p1','p2','p3','d1','d2'].forEach(id => document.getElementById(id).textContent = '?');
+  }
+
+  document.getElementById('dealBtn').addEventListener('click', peekHand);
+  document.getElementById('drawBtn').addEventListener('click', drawCard);
+  document.getElementById('resolveBtn').addEventListener('click', resolveHand);
+  document.getElementById('foldBtn').addEventListener('click', foldHand);
+  document.getElementById('spinBtn').addEventListener('click', spinSlot);
+</script>
+{% endblock %}
+
