@@ -1,14 +1,3 @@
-You have one new message.
-
-Skip to content
-Using Camarines Sur Polytechnic Colleges Mail with screen readers
-
-Conversations
- 
-Program Policies
-Powered by Google
-Last account activity: in 5 minutes
-Details
 # Card and Slot
 
 A Flask-based betting simulation application that provides interactive casino-style games and Monte Carlo simulations to analyze house edge and player outcomes across various game types.
